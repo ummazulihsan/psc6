@@ -133,6 +133,21 @@
   .field input{ width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:7px; }
   .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
 
+  /* Login screen */
+  .login-wrap{ min-height:100vh; width:100%; display:flex; align-items:center; justify-content:center; background:var(--navy); }
+  .login-card{ width:340px; background:#fff; border-radius:14px; padding:32px 28px; }
+  .login-card .brand{ margin-bottom:22px; }
+  .login-card .brand-text{ color:var(--ink); }
+  .login-card .brand-text span{ color:var(--ink-soft); }
+  .login-card h2{ font-size:17px; margin-bottom:4px; }
+  .login-card p.sub{ font-size:13px; color:var(--ink-soft); margin-bottom:20px; }
+  .login-card .field input{ width:100%; padding:10px 12px; }
+  .login-card .btn.primary{ width:100%; justify-content:center; margin-top:6px; padding:11px; }
+  .login-error{ background:#FBE4E4; color:var(--red-deep); font-size:12px; padding:9px 12px; border-radius:8px; margin-bottom:14px; display:none; }
+  .user-chip{ display:flex; align-items:center; gap:8px; font-size:12px; color:#AEB8C7; }
+  .user-chip .av{ width:26px; height:26px; border-radius:50%; background:var(--gold); color:var(--navy); display:grid; place-items:center; font-weight:600; font-size:12px; }
+  .logout-link{ color:#8792A3; text-decoration:underline; cursor:pointer; font-size:11px; margin-top:4px; display:inline-block; }
+
   @media (max-width:900px){
     aside{ display:none; }
     .kpi-row{ grid-template-columns:repeat(2,1fr); }
@@ -142,6 +157,23 @@
 </head>
 <body>
 
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-mark">S</div>
+      <div class="brand-text">Monitor Lapangan<span>Sensus &amp; Survei</span></div>
+    </div>
+    <h2>Masuk</h2>
+    <p class="sub">Gunakan akun yang terdaftar di sheet "Users".</p>
+    <div class="login-error" id="loginError"></div>
+    <div class="field"><label>Username</label><input type="text" id="loginUsername" placeholder="username"></div>
+    <div class="field"><label>Password</label><input type="password" id="loginPassword" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"></div>
+    <button class="btn primary" id="loginBtn">Masuk</button>
+    <p class="sub" style="margin-top:16px; margin-bottom:0;">Belum sambungkan URL data? <span class="logout-link" id="loginSettingsBtn">Atur di sini</span></p>
+  </div>
+</div>
+
+<div id="appShell" style="display:none; width:100%;">
 <aside>
   <div class="brand">
     <div class="brand-mark">S</div>
@@ -153,7 +185,11 @@
     <a href="#petugas">Petugas</a>
     <a href="#kelengkapan">Kelengkapan Dokumen</a>
   </nav>
-  <div class="side-foot" id="lastSync">Belum tersambung ke data.</div>
+  <div class="side-foot">
+    <div class="user-chip" id="userChip"></div>
+    <span class="logout-link" id="logoutBtn">Keluar</span>
+    <div style="margin-top:10px; color:#5C6678;" id="lastSync">Belum tersambung ke data.</div>
+  </div>
 </aside>
 
 <main>
@@ -177,6 +213,7 @@
     </div>
   </div>
 </main>
+</div>
 
 <div class="tooltip" id="tooltip"></div>
 
@@ -185,7 +222,7 @@
     <h3>Sambungkan ke Google Sheet</h3>
     <div class="field">
       <label>URL Web App (dari deploy Apps Script)</label>
-      <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/AKfycbyZBE6Uap_DX_rTLOOsTqlA8tX9zR1T7OC3kwnvbFP5Y4EwkSqQ3mLCcbGvmM858pT5jQ/exec">
+      <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/AKfycbw5OMSwM5N3j5PRd-0lEXuUD_JHf7AHztREvFxMvySDYBLfAb3uZanJK0FF2W6jurSAJw/exec">
     </div>
     <div class="modal-actions">
       <button class="btn" id="cancelSettings">Batal</button>
@@ -211,6 +248,7 @@
 let API_URL = localStorage.getItem('sensusApiUrl') || '';
 let RAW = [];
 let chartRef = null;
+let CURRENT_USER = null;
 
 const $ = (sel) => document.querySelector(sel);
 const fmt = (n) => Number(n || 0).toLocaleString('id-ID');
@@ -218,15 +256,91 @@ const fmt = (n) => Number(n || 0).toLocaleString('id-ID');
 document.getElementById('apiUrlInput').value = API_URL;
 
 $('#settingsBtn').onclick = () => $('#settingsModal').style.display = 'flex';
+$('#loginSettingsBtn').onclick = () => $('#settingsModal').style.display = 'flex';
 $('#cancelSettings').onclick = () => $('#settingsModal').style.display = 'none';
 $('#saveSettings').onclick = () => {
   API_URL = $('#apiUrlInput').value.trim();
   localStorage.setItem('sensusApiUrl', API_URL);
   $('#settingsModal').style.display = 'none';
-  loadData();
+  if (CURRENT_USER) loadData();
 };
 $('#refreshBtn').onclick = loadData;
 $('#cancelEdit').onclick = () => $('#editModal').style.display = 'none';
+
+function showApp(){
+  $('#loginScreen').style.display = 'none';
+  $('#appShell').style.display = 'flex';
+}
+function showLogin(){
+  $('#appShell').style.display = 'none';
+  $('#loginScreen').style.display = 'flex';
+}
+
+function initSession(){
+  const saved = sessionStorage.getItem('sensusUser');
+  if (saved) {
+    CURRENT_USER = JSON.parse(saved);
+    renderUserChip();
+    showApp();
+    if (API_URL) loadData();
+  } else {
+    showLogin();
+  }
+}
+
+function renderUserChip(){
+  if (!CURRENT_USER) return;
+  const initials = (CURRENT_USER.nama || CURRENT_USER.username || '?').trim().slice(0,2).toUpperCase();
+  $('#userChip').innerHTML = `<span class="av">${initials}</span><span>${CURRENT_USER.nama || CURRENT_USER.username}</span>`;
+}
+
+async function doLogin(){
+  const username = $('#loginUsername').value.trim();
+  const password = $('#loginPassword').value;
+  const errBox = $('#loginError');
+  errBox.style.display = 'none';
+
+  if (!API_URL) {
+    errBox.textContent = 'Sambungkan URL data terlebih dahulu (klik "Atur di sini" di bawah).';
+    errBox.style.display = 'block';
+    return;
+  }
+  if (!username || !password) {
+    errBox.textContent = 'Isi username dan password.';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  $('#loginBtn').textContent = 'Memeriksa...';
+  try {
+    const res = await fetch(API_URL, { method:'POST', body: JSON.stringify({ action:'login', username, password }) });
+    const json = await res.json();
+    if (!json.ok) {
+      errBox.textContent = json.error || 'Login gagal.';
+      errBox.style.display = 'block';
+      return;
+    }
+    CURRENT_USER = json.user;
+    sessionStorage.setItem('sensusUser', JSON.stringify(CURRENT_USER));
+    renderUserChip();
+    showApp();
+    loadData();
+  } catch(err) {
+    errBox.textContent = 'Tidak bisa menghubungi server: ' + err.message;
+    errBox.style.display = 'block';
+  } finally {
+    $('#loginBtn').textContent = 'Masuk';
+  }
+}
+
+$('#loginBtn').onclick = doLogin;
+$('#loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+$('#logoutBtn').onclick = () => {
+  sessionStorage.removeItem('sensusUser');
+  CURRENT_USER = null;
+  showLogin();
+};
 
 async function loadData(){
   if(!API_URL){
@@ -448,16 +562,16 @@ document.addEventListener('click', (e)=>{
 });
 
 const DEMO_DATA = [
-  {_row:2, Kegiatan:'Sensus Ekonomi 2026', Wilayah:'Kec. Pangkalpinang', Petugas:'Budi Santoso', Target:150, Realisasi:98, Dokumen_Lengkap:90, Dokumen_Belum:8, Status:'Proses', Update_Terakhir:'2026-08-10'},
-  {_row:3, Kegiatan:'Sensus Ekonomi 2026', Wilayah:'Kec. Sungailiat', Petugas:'Sari Wulandari', Target:140, Realisasi:140, Dokumen_Lengkap:140, Dokumen_Belum:0, Status:'Selesai', Update_Terakhir:'2026-08-11'},
-  {_row:4, Kegiatan:'Sensus Ekonomi 2026', Wilayah:'Kec. Sungailiat', Petugas:'Andi Prasetyo', Target:130, Realisasi:55, Dokumen_Lengkap:40, Dokumen_Belum:15, Status:'Terlambat', Update_Terakhir:'2026-08-08'},
-  {_row:5, Kegiatan:'Sensus Ekonomi 2026', Wilayah:'Kec. Pangkalpinang', Petugas:'Rina Amelia', Target:145, Realisasi:130, Dokumen_Lengkap:120, Dokumen_Belum:10, Status:'Proses', Update_Terakhir:'2026-08-11'},
+  {_row:2, Kegiatan:'Sensus Penduduk 2026', Wilayah:'Kec. Pangkalpinang', Petugas:'Budi Santoso', Target:150, Realisasi:98, Dokumen_Lengkap:90, Dokumen_Belum:8, Status:'Proses', Update_Terakhir:'2026-08-10'},
+  {_row:3, Kegiatan:'Sensus Penduduk 2026', Wilayah:'Kec. Sungailiat', Petugas:'Sari Wulandari', Target:140, Realisasi:140, Dokumen_Lengkap:140, Dokumen_Belum:0, Status:'Selesai', Update_Terakhir:'2026-08-11'},
+  {_row:4, Kegiatan:'Sensus Penduduk 2026', Wilayah:'Kec. Sungailiat', Petugas:'Andi Prasetyo', Target:130, Realisasi:55, Dokumen_Lengkap:40, Dokumen_Belum:15, Status:'Terlambat', Update_Terakhir:'2026-08-08'},
+  {_row:5, Kegiatan:'Sensus Penduduk 2026', Wilayah:'Kec. Pangkalpinang', Petugas:'Rina Amelia', Target:145, Realisasi:130, Dokumen_Lengkap:120, Dokumen_Belum:10, Status:'Proses', Update_Terakhir:'2026-08-11'},
   {_row:6, Kegiatan:'Survei Ekonomi 2026', Wilayah:'Kec. Merawang', Petugas:'Dedi Kurniawan', Target:80, Realisasi:80, Dokumen_Lengkap:78, Dokumen_Belum:2, Status:'Selesai', Update_Terakhir:'2026-08-09'},
   {_row:7, Kegiatan:'Survei Ekonomi 2026', Wilayah:'Kec. Merawang', Petugas:'Fitri Handayani', Target:90, Realisasi:40, Dokumen_Lengkap:35, Dokumen_Belum:5, Status:'Terlambat', Update_Terakhir:'2026-08-07'},
   {_row:8, Kegiatan:'Survei Ekonomi 2026', Wilayah:'Kec. Pangkalpinang', Petugas:'Yusuf Hidayat', Target:85, Realisasi:70, Dokumen_Lengkap:65, Dokumen_Belum:5, Status:'Proses', Update_Terakhir:'2026-08-10'},
 ];
 
-if(API_URL) loadData();
+initSession();
 </script>
 </body>
 </html>
