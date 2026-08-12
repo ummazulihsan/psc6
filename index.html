@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor Sensus &amp; Survei</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --navy:#0B1220;
+    --navy-2:#141F33;
+    --paper:#F4F6F8;
+    --card:#FFFFFF;
+    --line:#E1E5EA;
+    --ink:#1B2430;
+    --ink-soft:#5B6472;
+    --gold:#E8A33D;
+    --gold-deep:#8A5A16;
+    --green:#2F9E68;
+    --green-deep:#155C3C;
+    --red:#D14343;
+    --red-deep:#7A2020;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'IBM Plex Sans', sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    display:flex;
+    min-height:100vh;
+  }
+  h1,h2,h3, .display{ font-family:'Space Grotesk', sans-serif; }
+  .mono{ font-family:'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+
+  /* Sidebar */
+  aside{
+    width:230px;
+    background:var(--navy);
+    color:#DCE3EE;
+    flex-shrink:0;
+    padding:24px 18px;
+    position:sticky; top:0; height:100vh;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; margin-bottom:32px; }
+  .brand-mark{ width:30px; height:30px; border-radius:6px; background:var(--gold); display:grid; place-items:center; color:var(--navy); font-weight:700; font-family:'Space Grotesk',sans-serif; }
+  .brand-text{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15px; line-height:1.2; }
+  .brand-text span{ display:block; font-size:11px; color:#8792A3; font-weight:400; }
+  nav a{
+    display:flex; align-items:center; gap:10px;
+    color:#AEB8C7; text-decoration:none; font-size:14px;
+    padding:10px 10px; border-radius:8px; margin-bottom:2px;
+  }
+  nav a.active, nav a:hover{ background:var(--navy-2); color:#fff; }
+  .side-foot{ position:absolute; bottom:24px; left:18px; right:18px; font-size:11px; color:#6C7686; }
+
+  main{ flex:1; padding:28px 36px; max-width:1200px; }
+
+  header.top{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    margin-bottom:24px; gap:16px; flex-wrap:wrap;
+  }
+  header.top h1{ font-size:22px; font-weight:600; }
+  header.top p{ color:var(--ink-soft); font-size:13px; margin-top:4px; }
+  .top-actions{ display:flex; gap:8px; align-items:center; }
+  select, button, input{ font-family:inherit; font-size:13px; }
+  select{
+    padding:9px 12px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--ink);
+  }
+  .btn{
+    padding:9px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--ink);
+    cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+  }
+  .btn:hover{ border-color:#c7ccd3; }
+  .btn.primary{ background:var(--navy); color:#fff; border-color:var(--navy); }
+
+  /* KPI row */
+  .kpi-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:26px; }
+  .kpi{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .kpi .label{ font-size:12px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; }
+  .kpi .value{ font-family:'Space Grotesk',sans-serif; font-size:28px; font-weight:600; margin-top:6px; }
+  .kpi .sub{ font-size:12px; margin-top:4px; }
+  .up{ color:var(--green-deep); } .down{ color:var(--red-deep); }
+
+  section{ margin-bottom:28px; }
+  .section-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; }
+  .section-head h2{ font-size:16px; font-weight:600; }
+  .section-head .hint{ font-size:12px; color:var(--ink-soft); }
+
+  /* Signature: tally grid */
+  .tally-wrap{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .tally-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(15px,1fr)); gap:4px; }
+  .tally-cell{ aspect-ratio:1; border-radius:3px; cursor:pointer; position:relative; }
+  .tally-cell.selesai{ background:var(--green); }
+  .tally-cell.proses{ background:var(--gold); }
+  .tally-cell.terlambat{ background:var(--red); }
+  .tally-legend{ display:flex; gap:16px; margin-top:14px; font-size:12px; color:var(--ink-soft); }
+  .tally-legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .dot{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+  .tooltip{
+    position:fixed; background:var(--navy); color:#fff; font-size:12px; padding:8px 10px; border-radius:6px;
+    pointer-events:none; z-index:50; display:none; line-height:1.5; max-width:220px;
+  }
+
+  /* Table */
+  .table-wrap{ background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; padding:12px 14px; background:#FAFBFC; color:var(--ink-soft); font-weight:500; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td{ padding:11px 14px; border-bottom:1px solid var(--line); }
+  tr:last-child td{ border-bottom:none; }
+  .bar-track{ background:#EDEFF2; border-radius:20px; height:6px; width:100px; overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:20px; background:var(--gold); }
+  .badge{ font-size:11px; padding:3px 9px; border-radius:20px; font-weight:500; }
+  .badge.selesai{ background:#E3F4EC; color:var(--green-deep); }
+  .badge.proses{ background:#FCF0DC; color:var(--gold-deep); }
+  .badge.terlambat{ background:#FBE4E4; color:var(--red-deep); }
+  .edit-btn{ background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:12px; text-decoration:underline; }
+
+  .two-col{ display:grid; grid-template-columns:1.3fr 1fr; gap:16px; }
+  .chart-card{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; }
+
+  .state{ padding:60px 20px; text-align:center; color:var(--ink-soft); font-size:13px; }
+  .state.error{ color:var(--red-deep); }
+
+  /* Modal */
+  .modal-bg{ position:fixed; inset:0; background:rgba(11,18,32,.5); display:none; align-items:center; justify-content:center; z-index:100; }
+  .modal{ background:#fff; border-radius:12px; width:360px; padding:22px; }
+  .modal h3{ font-size:15px; margin-bottom:14px; }
+  .field{ margin-bottom:12px; }
+  .field label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:5px; }
+  .field input{ width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:7px; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+
+  @media (max-width:900px){
+    aside{ display:none; }
+    .kpi-row{ grid-template-columns:repeat(2,1fr); }
+    .two-col{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">
+    <div class="brand-mark">S</div>
+    <div class="brand-text">Monitor Lapangan<span>Sensus &amp; Survei</span></div>
+  </div>
+  <nav>
+    <a href="#ringkasan" class="active">Ringkasan</a>
+    <a href="#tally">Peta Progres</a>
+    <a href="#petugas">Petugas</a>
+    <a href="#kelengkapan">Kelengkapan Dokumen</a>
+  </nav>
+  <div class="side-foot" id="lastSync">Belum tersambung ke data.</div>
+</aside>
+
+<main>
+  <header class="top">
+    <div>
+      <h1>Ringkasan progres lapangan</h1>
+      <p id="kegiatanLabel">Menunggu koneksi ke sumber data&hellip;</p>
+    </div>
+    <div class="top-actions">
+      <select id="kegiatanFilter"><option>Semua kegiatan</option></select>
+      <button class="btn" id="refreshBtn">Muat ulang</button>
+      <button class="btn primary" id="settingsBtn">Sambungkan data</button>
+    </div>
+  </header>
+
+  <div id="appBody">
+    <div class="state" id="emptyState">
+      Dashboard ini belum tersambung ke Google Sheet kamu.<br>
+      Klik <strong>Sambungkan data</strong> lalu masukkan URL Web App dari Apps Script.<br><br>
+      <button class="btn" id="demoBtn">Lihat contoh tampilan dengan data dummy</button>
+    </div>
+  </div>
+</main>
+
+<div class="tooltip" id="tooltip"></div>
+
+<div class="modal-bg" id="settingsModal">
+  <div class="modal">
+    <h3>Sambungkan ke Google Sheet</h3>
+    <div class="field">
+      <label>URL Web App (dari deploy Apps Script)</label>
+      <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/xxx/exec">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelSettings">Batal</button>
+      <button class="btn primary" id="saveSettings">Simpan &amp; muat data</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h3 id="editTitle">Update progres</h3>
+    <div class="field"><label>Realisasi</label><input type="number" id="editRealisasi"></div>
+    <div class="field"><label>Dokumen lengkap</label><input type="number" id="editLengkap"></div>
+    <div class="field"><label>Dokumen belum lengkap</label><input type="number" id="editBelum"></div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelEdit">Batal</button>
+      <button class="btn primary" id="saveEdit">Simpan perubahan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let API_URL = localStorage.getItem('sensusApiUrl') || '';
+let RAW = [];
+let chartRef = null;
+
+const $ = (sel) => document.querySelector(sel);
+const fmt = (n) => Number(n || 0).toLocaleString('id-ID');
+
+document.getElementById('apiUrlInput').value = API_URL;
+
+$('#settingsBtn').onclick = () => $('#settingsModal').style.display = 'flex';
+$('#cancelSettings').onclick = () => $('#settingsModal').style.display = 'none';
+$('#saveSettings').onclick = () => {
+  API_URL = $('#apiUrlInput').value.trim();
+  localStorage.setItem('sensusApiUrl', API_URL);
+  $('#settingsModal').style.display = 'none';
+  loadData();
+};
+$('#refreshBtn').onclick = loadData;
+$('#cancelEdit').onclick = () => $('#editModal').style.display = 'none';
+
+async function loadData(){
+  if(!API_URL){
+    $('#appBody').innerHTML = '<div class="state">Belum ada URL data. Klik "Sambungkan data" di kanan atas.</div>';
+    return;
+  }
+  $('#appBody').innerHTML = '<div class="state">Memuat data dari Google Sheet&hellip;</div>';
+  try{
+    const res = await fetch(API_URL);
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error || 'Gagal memuat data');
+    RAW = json.data || [];
+    document.getElementById('lastSync').textContent = 'Update terakhir: ' + new Date(json.lastUpdated).toLocaleString('id-ID');
+    populateKegiatanFilter();
+    render();
+  } catch(err){
+    $('#appBody').innerHTML = '<div class="state error">Gagal mengambil data: ' + err.message + '<br>Pastikan URL Web App benar dan sudah di-deploy sebagai "Anyone with the link".</div>';
+  }
+}
+
+function populateKegiatanFilter(){
+  const sel = $('#kegiatanFilter');
+  const list = [...new Set(RAW.map(r => r.Kegiatan).filter(Boolean))];
+  sel.innerHTML = '<option value="">Semua kegiatan</option>' + list.map(k => `<option value="${k}">${k}</option>`).join('');
+  sel.onchange = render;
+}
+
+function currentData(){
+  const filter = $('#kegiatanFilter').value;
+  return filter ? RAW.filter(r => r.Kegiatan === filter) : RAW;
+}
+
+function statusClass(s){
+  s = (s || '').toLowerCase();
+  if(s.includes('selesai')) return 'selesai';
+  if(s.includes('terlambat')) return 'terlambat';
+  return 'proses';
+}
+
+function render(){
+  const data = currentData();
+  if(!data.length){
+    $('#appBody').innerHTML = '<div class="state">Tidak ada data untuk kegiatan ini.</div>';
+    return;
+  }
+  $('#kegiatanLabel').textContent = data.length + ' entri petugas dari ' + [...new Set(data.map(d=>d.Wilayah))].length + ' wilayah';
+
+  const totalTarget = data.reduce((a,r)=>a+Number(r.Target||0),0);
+  const totalRealisasi = data.reduce((a,r)=>a+Number(r.Realisasi||0),0);
+  const totalLengkap = data.reduce((a,r)=>a+Number(r.Dokumen_Lengkap||0),0);
+  const totalBelum = data.reduce((a,r)=>a+Number(r.Dokumen_Belum||0),0);
+  const capaian = totalTarget ? Math.round(totalRealisasi/totalTarget*100) : 0;
+  const kelengkapan = (totalLengkap+totalBelum) ? Math.round(totalLengkap/(totalLengkap+totalBelum)*100) : 0;
+
+  const perWilayah = {};
+  data.forEach(r=>{
+    const w = r.Wilayah || 'Tanpa wilayah';
+    perWilayah[w] = perWilayah[w] || {target:0, realisasi:0};
+    perWilayah[w].target += Number(r.Target||0);
+    perWilayah[w].realisasi += Number(r.Realisasi||0);
+  });
+  const wilayahList = Object.entries(perWilayah);
+
+  $('#appBody').innerHTML = `
+    <div class="kpi-row">
+      <div class="kpi"><div class="label">Total target</div><div class="value mono">${fmt(totalTarget)}</div><div class="sub">seluruh petugas</div></div>
+      <div class="kpi"><div class="label">Realisasi</div><div class="value mono">${fmt(totalRealisasi)}</div><div class="sub ${capaian>=80?'up':'down'}">${capaian}% dari target</div></div>
+      <div class="kpi"><div class="label">Dokumen lengkap</div><div class="value mono">${fmt(totalLengkap)}</div><div class="sub">dari ${fmt(totalLengkap+totalBelum)} dokumen masuk</div></div>
+      <div class="kpi"><div class="label">Kelengkapan</div><div class="value mono">${kelengkapan}%</div><div class="sub ${kelengkapan>=80?'up':'down'}">${fmt(totalBelum)} belum lengkap</div></div>
+    </div>
+
+    <section id="tally">
+      <div class="section-head"><h2>Peta progres petugas</h2><div class="hint">satu kotak = satu petugas, warna = status. arahkan kursor untuk detail</div></div>
+      <div class="tally-wrap">
+        <div class="tally-grid">${data.map((r,i)=>`<div class="tally-cell ${statusClass(r.Status)}" data-i="${i}"></div>`).join('')}</div>
+        <div class="tally-legend">
+          <span><span class="dot" style="background:var(--green)"></span>Selesai</span>
+          <span><span class="dot" style="background:var(--gold)"></span>Proses</span>
+          <span><span class="dot" style="background:var(--red)"></span>Terlambat</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="two-col">
+      <div>
+        <div class="section-head"><h2>Capaian per wilayah</h2></div>
+        <div class="chart-card"><div style="position:relative; height:${Math.max(240, wilayahList.length*34)}px;"><canvas id="wilayahChart" role="img" aria-label="Grafik capaian realisasi terhadap target per wilayah"></canvas></div></div>
+      </div>
+      <div>
+        <div class="section-head" id="kelengkapan"><h2>Status kelengkapan dokumen</h2></div>
+        <div class="chart-card"><div style="position:relative; height:240px;"><canvas id="kelengkapanChart" role="img" aria-label="Grafik proporsi dokumen lengkap dan belum lengkap"></canvas></div></div>
+      </div>
+    </section>
+
+    <section id="petugas">
+      <div class="section-head"><h2>Progres per petugas</h2><div class="hint">${data.length} petugas</div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Petugas</th><th>Wilayah</th><th>Progres</th><th>Kelengkapan</th><th>Status</th><th>Update</th><th></th></tr></thead>
+          <tbody>
+            ${data.map((r,i)=>{
+              const pct = r.Target ? Math.min(100, Math.round(Number(r.Realisasi||0)/Number(r.Target)*100)) : 0;
+              const docTotal = Number(r.Dokumen_Lengkap||0)+Number(r.Dokumen_Belum||0);
+              const docPct = docTotal ? Math.round(Number(r.Dokumen_Lengkap||0)/docTotal*100) : 0;
+              return `<tr>
+                <td>${r.Petugas||'-'}</td>
+                <td>${r.Wilayah||'-'}</td>
+                <td><div style="display:flex; align-items:center; gap:8px;"><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div><span class="mono" style="font-size:12px;">${fmt(r.Realisasi)}/${fmt(r.Target)}</span></div></td>
+                <td class="mono">${docPct}%</td>
+                <td><span class="badge ${statusClass(r.Status)}">${r.Status||'Proses'}</span></td>
+                <td class="mono" style="font-size:12px; color:var(--ink-soft);">${r.Update_Terakhir||'-'}</td>
+                <td><button class="edit-btn" data-i="${i}">Update</button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  drawWilayahChart(wilayahList);
+  drawKelengkapanChart(totalLengkap, totalBelum);
+  attachTallyTooltips(data);
+  attachEditHandlers(data);
+}
+
+function drawWilayahChart(wilayahList){
+  if(chartRef) chartRef.destroy();
+  const ctx = document.getElementById('wilayahChart');
+  chartRef = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: wilayahList.map(w=>w[0]),
+      datasets:[
+        {label:'Target', data: wilayahList.map(w=>w[1].target), backgroundColor:'#D9DEE5'},
+        {label:'Realisasi', data: wilayahList.map(w=>w[1].realisasi), backgroundColor:'#E8A33D'}
+      ]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ grid:{ color:'#EDEFF2' } }, y:{ grid:{ display:false } } }
+    }
+  });
+}
+
+let chartRef2 = null;
+function drawKelengkapanChart(lengkap, belum){
+  if(chartRef2) chartRef2.destroy();
+  const ctx = document.getElementById('kelengkapanChart');
+  chartRef2 = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels:['Lengkap','Belum lengkap'],
+      datasets:[{ data:[lengkap, belum], backgroundColor:['#2F9E68','#D14343'] }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      cutout:'65%'
+    }
+  });
+}
+
+function attachTallyTooltips(data){
+  const tip = $('#tooltip');
+  document.querySelectorAll('.tally-cell').forEach(cell=>{
+    const r = data[cell.dataset.i];
+    cell.addEventListener('mousemove', e=>{
+      tip.style.display='block';
+      tip.style.left = (e.clientX+14)+'px';
+      tip.style.top = (e.clientY+14)+'px';
+      tip.innerHTML = `<strong>${r.Petugas}</strong><br>${r.Wilayah}<br>${fmt(r.Realisasi)}/${fmt(r.Target)} &middot; ${r.Status||'Proses'}`;
+    });
+    cell.addEventListener('mouseleave', ()=> tip.style.display='none');
+  });
+}
+
+let editingRow = null;
+function attachEditHandlers(data){
+  document.querySelectorAll('.edit-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      editingRow = data[btn.dataset.i];
+      $('#editTitle').textContent = 'Update: ' + editingRow.Petugas;
+      $('#editRealisasi').value = editingRow.Realisasi || 0;
+      $('#editLengkap').value = editingRow.Dokumen_Lengkap || 0;
+      $('#editBelum').value = editingRow.Dokumen_Belum || 0;
+      $('#editModal').style.display = 'flex';
+    };
+  });
+}
+
+$('#saveEdit').onclick = async ()=>{
+  if(!editingRow) return;
+  const payload = {
+    _row: editingRow._row,
+    Realisasi: Number($('#editRealisasi').value),
+    Dokumen_Lengkap: Number($('#editLengkap').value),
+    Dokumen_Belum: Number($('#editBelum').value)
+  };
+  try{
+    const res = await fetch(API_URL, { method:'POST', body: JSON.stringify(payload) });
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error);
+    $('#editModal').style.display = 'none';
+    loadData();
+  } catch(err){
+    alert('Gagal menyimpan: ' + err.message);
+  }
+};
+
+document.addEventListener('click', (e)=>{
+  if(e.target && e.target.id === 'demoBtn'){
+    RAW = DEMO_DATA;
+    document.getElementById('lastSync').textContent = 'Menampilkan data contoh (belum tersambung ke Sheet asli)';
+    populateKegiatanFilter();
+    render();
+  }
+});
+
+const DEMO_DATA = [
+  {_row:2, Kegiatan:'Sensus Penduduk 2026', Wilayah:'Kec. Pangkalpinang', Petugas:'Budi Santoso', Target:150, Realisasi:98, Dokumen_Lengkap:90, Dokumen_Belum:8, Status:'Proses', Update_Terakhir:'2026-08-10'},
+  {_row:3, Kegiatan:'Sensus Penduduk 2026', Wilayah:'Kec. Sungailiat', Petugas:'Sari Wulandari', Target:140, Realisasi:140, Dokumen_Lengkap:140, Dokumen_Belum:0, Status:'Selesai', Update_Terakhir:'2026-08-11'},
+  {_row:4, Kegiatan:'Sensus Penduduk 2026', Wilayah:'Kec. Sungailiat', Petugas:'Andi Prasetyo', Target:130, Realisasi:55, Dokumen_Lengkap:40, Dokumen_Belum:15, Status:'Terlambat', Update_Terakhir:'2026-08-08'},
+  {_row:5, Kegiatan:'Sensus Penduduk 2026', Wilayah:'Kec. Pangkalpinang', Petugas:'Rina Amelia', Target:145, Realisasi:130, Dokumen_Lengkap:120, Dokumen_Belum:10, Status:'Proses', Update_Terakhir:'2026-08-11'},
+  {_row:6, Kegiatan:'Survei Ekonomi 2026', Wilayah:'Kec. Merawang', Petugas:'Dedi Kurniawan', Target:80, Realisasi:80, Dokumen_Lengkap:78, Dokumen_Belum:2, Status:'Selesai', Update_Terakhir:'2026-08-09'},
+  {_row:7, Kegiatan:'Survei Ekonomi 2026', Wilayah:'Kec. Merawang', Petugas:'Fitri Handayani', Target:90, Realisasi:40, Dokumen_Lengkap:35, Dokumen_Belum:5, Status:'Terlambat', Update_Terakhir:'2026-08-07'},
+  {_row:8, Kegiatan:'Survei Ekonomi 2026', Wilayah:'Kec. Pangkalpinang', Petugas:'Yusuf Hidayat', Target:85, Realisasi:70, Dokumen_Lengkap:65, Dokumen_Belum:5, Status:'Proses', Update_Terakhir:'2026-08-10'},
+];
+
+if(API_URL) loadData();
+</script>
+</body>
+</html>
